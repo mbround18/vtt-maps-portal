@@ -57,7 +57,7 @@ jobs:
       - uses: mbround18/paws/actions/paws-up@main
         with:
           github-token: ${{ github.token }}
-      - name: Build and push runtime image
+      - name: Build and push runtime image (sha tag)
         run: |
           paws docker \
             --image mbround18/vtt-maps-portal-api \
@@ -65,7 +65,22 @@ jobs:
             --context . \
             --target runtime \
             --dockerhub-username mbround18 \
-            --with-latest \
+            --push
+        env:
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      # --with-latest didn't actually add a :latest tag in practice (verified
+      # against a real push -- only the sha-derived tag landed on Docker Hub),
+      # so tag :latest explicitly rather than rely on undocumented behavior.
+      # compose.yaml's image reference defaults to ${VERSION:-latest}.
+      - name: Build and push runtime image (latest tag)
+        run: |
+          paws docker \
+            --image mbround18/vtt-maps-portal-api \
+            --version latest \
+            --dockerfile infra/docker/Dockerfile \
+            --context . \
+            --target runtime \
+            --dockerhub-username mbround18 \
             --push
         env:
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
