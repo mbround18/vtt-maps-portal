@@ -2,11 +2,7 @@ use actix_web::{HttpRequest, HttpResponse, web};
 use mongodb::bson::doc;
 use uuid::Uuid;
 
-use crate::{
-    app::AppState,
-    models::{MapDownload, MapView, MapVote},
-    services::auth::require_admin,
-};
+use crate::{app::AppState, services::auth::require_admin};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -16,30 +12,23 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn views_coll(state: &AppState) -> mongodb::Collection<MapView> {
-    state.db.collection("views")
-}
-fn downloads_coll(state: &AppState) -> mongodb::Collection<MapDownload> {
-    state.db.collection("downloads")
-}
-fn votes_coll(state: &AppState) -> mongodb::Collection<MapVote> {
-    state.db.collection("votes")
-}
-
 async fn overview(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     if require_admin(&req, &state).await.is_err() {
         return HttpResponse::Forbidden().json(serde_json::json!({"error": "admin role required"}));
     }
 
-    let total_views = views_coll(&state)
+    let total_views = state
+        .views_coll()
         .count_documents(doc! {})
         .await
         .unwrap_or(0);
-    let total_downloads = downloads_coll(&state)
+    let total_downloads = state
+        .downloads_coll()
         .count_documents(doc! {})
         .await
         .unwrap_or(0);
-    let total_votes = votes_coll(&state)
+    let total_votes = state
+        .votes_coll()
         .count_documents(doc! {})
         .await
         .unwrap_or(0);
@@ -67,15 +56,18 @@ async fn map_analytics(
         }
     };
 
-    let views = views_coll(&state)
+    let views = state
+        .views_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);
-    let downloads = downloads_coll(&state)
+    let downloads = state
+        .downloads_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);
-    let votes = votes_coll(&state)
+    let votes = state
+        .votes_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);

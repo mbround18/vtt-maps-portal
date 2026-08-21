@@ -1,5 +1,4 @@
 use actix_web::{HttpRequest, HttpResponse, web};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chrono::Utc;
 use futures::TryStreamExt;
 use mongodb::bson::doc;
@@ -12,6 +11,7 @@ use crate::{
     services::{
         assets,
         auth::{require_admin, require_csrf, require_super_admin},
+        cursor::{decode_timestamp_id_cursor, encode_timestamp_id_cursor},
         queue,
     },
 };
@@ -33,19 +33,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/maps/metadata/{id}", web::get().to(get_map_metadata))
             .route("/maps/metadata/{id}", web::post().to(update_map_metadata)),
     );
-}
-
-fn users_coll(state: &AppState) -> mongodb::Collection<User> {
-    state.db.collection("users")
-}
-fn sessions_coll(state: &AppState) -> mongodb::Collection<Session> {
-    state.db.collection("sessions")
-}
-fn maps_coll(state: &AppState) -> mongodb::Collection<Map> {
-    state.db.collection("maps")
-}
-fn sync_runs_coll(state: &AppState) -> mongodb::Collection<SyncRun> {
-    state.db.collection("sync_runs")
 }
 
 fn enqueue_error(err: anyhow::Error) -> HttpResponse {
@@ -96,11 +83,13 @@ async fn users(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
         );
     }
 
-    let total = users_coll(&state)
+    let total = state
+        .users_coll()
         .count_documents(filter.clone())
         .await
         .unwrap_or(0);
-    let cursor = match users_coll(&state)
+    let cursor = match state
+        .users_coll()
         .find(filter)
         .sort(doc! {"created_at": -1})
         .skip(((page - 1) * page_size) as u64)
@@ -196,7 +185,8 @@ async fn update_user_role(
         }
     };
 
-    let result = users_coll(&state)
+    let result = state
+        .users_coll()
         .update_one(
             doc! {"_id": user_id},
             doc! {"$set": {"role": role, "updated_at": Utc::now()}},
@@ -219,28 +209,34 @@ async fn asset_status(state: web::Data<AppState>, req: HttpRequest) -> HttpRespo
         return HttpResponse::Forbidden().json(serde_json::json!({"error": "admin role required"}));
     }
 
-    let total = maps_coll(&state)
+    let total = state
+        .maps_coll()
         .count_documents(doc! {})
         .await
         .unwrap_or(0);
-    let pending = maps_coll(&state)
+    let pending = state
+        .maps_coll()
         .count_documents(doc! {"status": "pending"})
         .await
         .unwrap_or(0);
-    let processing = maps_coll(&state)
+    let processing = state
+        .maps_coll()
         .count_documents(doc! {"status": "processing"})
         .await
         .unwrap_or(0);
-    let ready = maps_coll(&state)
+    let ready = state
+        .maps_coll()
         .count_documents(doc! {"status": "ready"})
         .await
         .unwrap_or(0);
-    let error = maps_coll(&state)
+    let error = state
+        .maps_coll()
         .count_documents(doc! {"status": "error"})
         .await
         .unwrap_or(0);
 
-    let last_run = sync_runs_coll(&state)
+    let last_run = state
+        .sync_runs_coll()
         .find_one(doc! {})
         .sort(doc! {"started_at": -1})
         .await
@@ -288,20 +284,6 @@ struct CursorQuery {
     limit: Option<i64>,
 }
 
-fn encode_cursor(at: chrono::DateTime<Utc>, id: Uuid) -> String {
-    URL_SAFE_NO_PAD.encode(format!("{}|{}", at.timestamp_millis(), id))
-}
-
-fn decode_cursor(input: &str) -> Option<(chrono::DateTime<Utc>, Uuid)> {
-    let decoded = URL_SAFE_NO_PAD.decode(input).ok()?;
-    let text = String::from_utf8(decoded).ok()?;
-    let mut parts = text.split('|');
-    let ms = parts.next()?.parse::<i64>().ok()?;
-    let id = Uuid::parse_str(parts.next()?).ok()?;
-    let at = chrono::DateTime::<Utc>::from_timestamp_millis(ms)?;
-    Some((at, id))
-}
-
 async fn sync_runs(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     if require_admin(&req, &state).await.is_err() {
         return HttpResponse::Forbidden().json(serde_json::json!({"error": "admin role required"}));
@@ -313,14 +295,15 @@ async fn sync_runs(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
 
     let mut filter = doc! {};
-    if let Some((c_at, c_id)) = query.cursor.as_deref().and_then(decode_cursor) {
+    if let Some((c_at, c_id)) = query.cursor.as_deref().and_then(decode_timestamp_id_cursor) {
         filter = doc! {"$or": [
             {"started_at": {"$lt": c_at}},
             {"started_at": c_at, "_id": {"$lt": c_id}},
         ]};
     }
 
-    let cursor = match sync_runs_coll(&state)
+    let cursor = match state
+        .sync_runs_coll()
         .find(filter)
         .sort(doc! {"started_at": -1, "_id": -1})
         .limit(limit)
@@ -335,7 +318,9 @@ async fn sync_runs(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse
 
     match cursor.try_collect::<Vec<SyncRun>>().await {
         Ok(rows) => {
-            let next_cursor = rows.last().map(|r| encode_cursor(r.started_at, r.id));
+            let next_cursor = rows
+                .last()
+                .map(|r| encode_timestamp_id_cursor(r.started_at, r.id));
             HttpResponse::Ok().json(serde_json::json!({
                 "items": rows,
                 "next_cursor": next_cursor,
@@ -353,7 +338,7 @@ async fn list_map_metadata(state: web::Data<AppState>, req: HttpRequest) -> Http
         return HttpResponse::Forbidden()
             .json(serde_json::json!({"error": "super admin role required"}));
     }
-    let cursor = match maps_coll(&state).find(doc! {}).sort(doc! {"name": 1}).await {
+    let cursor = match state.maps_coll().find(doc! {}).sort(doc! {"name": 1}).await {
         Ok(c) => c,
         Err(err) => {
             return HttpResponse::InternalServerError()
@@ -459,7 +444,8 @@ async fn update_map_metadata(
         );
     }
 
-    let updated = maps_coll(&state)
+    let updated = state
+        .maps_coll()
         .update_one(doc! {"_id": map.id}, doc! {"$set": set_doc})
         .await;
 
@@ -491,7 +477,8 @@ async fn user_sessions(
         }
     };
 
-    let cursor = match sessions_coll(&state)
+    let cursor = match state
+        .sessions_coll()
         .find(doc! {"user_id": user_id})
         .sort(doc! {"created_at": -1})
         .limit(100)
@@ -554,7 +541,8 @@ async fn revoke_user_session(
         }
     };
 
-    let updated = sessions_coll(&state)
+    let updated = state
+        .sessions_coll()
         .update_one(
             doc! {"_id": session_id, "user_id": user_id},
             doc! {"$set": {"revoked_at": Utc::now(), "revoked_reason": "admin_revoke"}},

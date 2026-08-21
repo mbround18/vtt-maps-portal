@@ -2,8 +2,6 @@ use std::{convert::Infallible, time::Duration};
 
 use actix_web::{HttpRequest, HttpResponse, web};
 use actix_web_lab::sse::{self, Sse};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use chrono::{DateTime, Utc};
 use futures::TryStreamExt;
 use mongodb::bson::doc;
 use tokio::{sync::mpsc, time::sleep};
@@ -14,6 +12,7 @@ use crate::{
     models::Job,
     services::{
         auth::{require_admin, require_csrf},
+        cursor::{decode_timestamp_id_cursor, encode_timestamp_id_cursor},
         queue,
     },
 };
@@ -29,28 +28,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn jobs_coll(state: &AppState) -> mongodb::Collection<Job> {
-    state.db.collection("jobs")
-}
-
 #[derive(Debug, serde::Deserialize)]
 struct JobsQuery {
     cursor: Option<String>,
     limit: Option<i64>,
-}
-
-fn encode_cursor(created_at: DateTime<Utc>, id: Uuid) -> String {
-    URL_SAFE_NO_PAD.encode(format!("{}|{}", created_at.timestamp_millis(), id))
-}
-
-fn decode_cursor(input: &str) -> Option<(DateTime<Utc>, Uuid)> {
-    let decoded = URL_SAFE_NO_PAD.decode(input).ok()?;
-    let text = String::from_utf8(decoded).ok()?;
-    let mut parts = text.split('|');
-    let ms = parts.next()?.parse::<i64>().ok()?;
-    let id = Uuid::parse_str(parts.next()?).ok()?;
-    let at = DateTime::<Utc>::from_timestamp_millis(ms)?;
-    Some((at, id))
 }
 
 fn job_json(job: &Job) -> serde_json::Value {
@@ -84,14 +65,15 @@ async fn list_recent(state: web::Data<AppState>, req: HttpRequest) -> HttpRespon
     let limit = query.limit.unwrap_or(50).clamp(1, 200);
 
     let mut filter = doc! {};
-    if let Some((c_at, c_id)) = query.cursor.as_deref().and_then(decode_cursor) {
+    if let Some((c_at, c_id)) = query.cursor.as_deref().and_then(decode_timestamp_id_cursor) {
         filter = doc! {"$or": [
             {"created_at": {"$lt": c_at}},
             {"created_at": c_at, "_id": {"$lt": c_id}},
         ]};
     }
 
-    let cursor = match jobs_coll(&state)
+    let cursor = match state
+        .jobs_coll()
         .find(filter)
         .sort(doc! {"created_at": -1, "_id": -1})
         .limit(limit)
@@ -107,7 +89,9 @@ async fn list_recent(state: web::Data<AppState>, req: HttpRequest) -> HttpRespon
     match cursor.try_collect::<Vec<Job>>().await {
         Ok(rows) => {
             let jobs = rows.iter().map(job_json).collect::<Vec<_>>();
-            let next_cursor = rows.last().map(|r| encode_cursor(r.created_at, r.id));
+            let next_cursor = rows
+                .last()
+                .map(|r| encode_timestamp_id_cursor(r.created_at, r.id));
             HttpResponse::Ok().json(serde_json::json!({
                 "items": jobs.clone(),
                 "next_cursor": next_cursor,
@@ -137,7 +121,7 @@ async fn status(
         }
     };
 
-    match jobs_coll(&state).find_one(doc! {"_id": job_id}).await {
+    match state.jobs_coll().find_one(doc! {"_id": job_id}).await {
         Ok(Some(job)) => HttpResponse::Ok().json(job_json(&job)),
         Ok(None) => HttpResponse::NotFound().json(serde_json::json!({"error": "job not found"})),
         Err(err) => {
@@ -163,7 +147,8 @@ async fn stream_status(
 
     tokio::spawn(async move {
         loop {
-            let job = jobs_coll(&state)
+            let job = state
+                .jobs_coll()
                 .find_one(doc! {"_id": job_id})
                 .await
                 .ok()

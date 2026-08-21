@@ -19,10 +19,6 @@ use crate::{
 const MAX_ATTEMPTS: i32 = 5;
 const TRANSIENT_RETRY_BASE_SECS: i64 = 10;
 
-fn jobs_coll(state: &AppState) -> mongodb::Collection<Job> {
-    state.db.collection("jobs")
-}
-
 fn classify_error(err: &anyhow::Error) -> ErrorClass {
     let msg = err.to_string().to_lowercase();
     if msg.contains("timeout")
@@ -51,7 +47,8 @@ pub async fn enqueue_job(
     payload: serde_json::Value,
 ) -> Result<Uuid> {
     if job_type == "sync_maps" {
-        let existing = jobs_coll(state)
+        let existing = state
+            .jobs_coll()
             .find_one(doc! {
                 "job_type": job_type,
                 "status": {"$in": ["pending", "running"]},
@@ -65,7 +62,8 @@ pub async fn enqueue_job(
 
     let id = Uuid::new_v4();
     let now = Utc::now();
-    jobs_coll(state)
+    state
+        .jobs_coll()
         .insert_one(Job {
             id,
             job_type: job_type.to_string(),
@@ -89,7 +87,8 @@ pub async fn enqueue_job(
 }
 
 pub async fn cancel_job(state: &AppState, job_id: Uuid) -> Result<serde_json::Value> {
-    let job = jobs_coll(state)
+    let job = state
+        .jobs_coll()
         .find_one(doc! {"_id": job_id})
         .await
         .context("failed to query job")?
@@ -110,7 +109,7 @@ pub async fn cancel_job(state: &AppState, job_id: Uuid) -> Result<serde_json::Va
         "cancelled"
     };
 
-    jobs_coll(state)
+    state.jobs_coll()
         .update_one(
             doc! {"_id": job_id},
             doc! {"$set": {
@@ -132,7 +131,8 @@ pub async fn cancel_job(state: &AppState, job_id: Uuid) -> Result<serde_json::Va
 }
 
 pub async fn retry_job(state: &AppState, job_id: Uuid, _force: bool) -> Result<Uuid> {
-    let job = jobs_coll(state)
+    let job = state
+        .jobs_coll()
         .find_one(doc! {"_id": job_id})
         .await
         .context("failed to query retry job")?
@@ -147,13 +147,15 @@ pub async fn retry_job(state: &AppState, job_id: Uuid, _force: bool) -> Result<U
 
 async fn set_progress(state: &AppState, job_id: Uuid, progress: &JobProgress) {
     let value = mongodb::bson::to_bson(progress).unwrap_or(mongodb::bson::Bson::Null);
-    let _ = jobs_coll(state)
+    let _ = state
+        .jobs_coll()
         .update_one(doc! {"_id": job_id}, doc! {"$set": {"progress": value}})
         .await;
 }
 
 async fn is_cancelled(state: &AppState, job_id: Uuid) -> bool {
-    jobs_coll(state)
+    state
+        .jobs_coll()
         .find_one(doc! {"_id": job_id})
         .await
         .ok()
@@ -187,7 +189,8 @@ async fn next_job(state: &AppState) -> Result<Option<Job>> {
         .sort(doc! {"created_at": 1})
         .return_document(ReturnDocument::After)
         .build();
-    let job = jobs_coll(state)
+    let job = state
+        .jobs_coll()
         .find_one_and_update(
             doc! {"status": "pending", "available_at": {"$lte": now}},
             doc! {"$set": {"status": "running", "updated_at": now, "started_at": now}},
@@ -243,7 +246,7 @@ async fn process_job(state: &AppState, job: Job) -> Result<()> {
     let now = Utc::now();
 
     if was_cancelled {
-        let _ = jobs_coll(state)
+        let _ = state.jobs_coll()
             .update_one(
                 doc! {"_id": job.id},
                 doc! {"$set": {"status": "cancelled", "completed_at": now, "error": "cancelled by admin"}},
@@ -255,7 +258,8 @@ async fn process_job(state: &AppState, job: Job) -> Result<()> {
 
     match result {
         Ok(_) => {
-            let _ = jobs_coll(state)
+            let _ = state
+                .jobs_coll()
                 .update_one(
                     doc! {"_id": job.id},
                     doc! {"$set": {
@@ -274,7 +278,8 @@ async fn process_job(state: &AppState, job: Job) -> Result<()> {
 
             if matches!(class, ErrorClass::Transient) && attempts_done < job.max_attempts {
                 let backoff = TRANSIENT_RETRY_BASE_SECS * i64::from(attempts_done.max(1));
-                let _ = jobs_coll(state)
+                let _ = state
+                    .jobs_coll()
                     .update_one(
                         doc! {"_id": job.id},
                         doc! {"$set": {
@@ -291,7 +296,8 @@ async fn process_job(state: &AppState, job: Job) -> Result<()> {
                     job.id, job.job_type, attempts_done, job.max_attempts
                 );
             } else {
-                let _ = jobs_coll(state)
+                let _ = state
+                    .jobs_coll()
                     .update_one(
                         doc! {"_id": job.id},
                         doc! {"$set": {

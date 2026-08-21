@@ -21,14 +21,6 @@ use crate::{
     models::{Map, SyncRun, SyncRunError},
 };
 
-fn maps_coll(state: &AppState) -> mongodb::Collection<Map> {
-    state.db.collection("maps")
-}
-
-fn sync_runs_coll(state: &AppState) -> mongodb::Collection<SyncRun> {
-    state.db.collection("sync_runs")
-}
-
 pub fn s3_client(state: &AppState) -> S3Client {
     let creds = Credentials::new(
         &state.config.rustfs_access_key,
@@ -288,7 +280,8 @@ async fn fetch_file_bytes(state: &AppState, path: &str) -> Result<Vec<u8>> {
 pub async fn sync_maps(state: &AppState) -> Result<Vec<Uuid>> {
     let run_id = Uuid::new_v4();
     let started_at = Utc::now();
-    sync_runs_coll(state)
+    state
+        .sync_runs_coll()
         .insert_one(SyncRun {
             id: run_id,
             started_at,
@@ -308,7 +301,8 @@ pub async fn sync_maps(state: &AppState) -> Result<Vec<Uuid>> {
     let paths = match tree_result {
         Ok(paths) => paths,
         Err(err) => {
-            let _ = sync_runs_coll(state)
+            let _ = state
+                .sync_runs_coll()
                 .update_one(
                     doc! {"_id": run_id},
                     doc! {"$set": {
@@ -325,7 +319,8 @@ pub async fn sync_maps(state: &AppState) -> Result<Vec<Uuid>> {
 
     for path in paths {
         let rel = path.trim_start_matches("maps/").to_string();
-        let existing = maps_coll(state)
+        let existing = state
+            .maps_coll()
             .find_one(doc! {"path": &rel})
             .await
             .context("failed to query existing map by path")?;
@@ -354,7 +349,8 @@ pub async fn sync_maps(state: &AppState) -> Result<Vec<Uuid>> {
         .iter()
         .map(|e| mongodb::bson::to_bson(e).unwrap_or(mongodb::bson::Bson::Null))
         .collect();
-    let _ = sync_runs_coll(state)
+    let _ = state
+        .sync_runs_coll()
         .update_one(
             doc! {"_id": run_id},
             doc! {"$set": {
@@ -393,7 +389,8 @@ async fn ingest_map_bytes(state: &AppState, rel: &str, bytes: Vec<u8>) -> Result
 
     let (name, tags) = derive_name_and_tags_from_path(rel);
     let now = Utc::now();
-    maps_coll(state)
+    state
+        .maps_coll()
         .insert_one(Map {
             id: map_id,
             path: rel.to_string(),
@@ -437,7 +434,8 @@ pub async fn preload_from_directory(
 ) -> Result<PreloadSummary> {
     let run_id = Uuid::new_v4();
     let started_at = Utc::now();
-    sync_runs_coll(state)
+    state
+        .sync_runs_coll()
         .insert_one(SyncRun {
             id: run_id,
             started_at,
@@ -473,7 +471,7 @@ pub async fn preload_from_directory(
             .to_string_lossy()
             .replace('\\', "/");
 
-        let existing = match maps_coll(state).find_one(doc! {"path": &rel}).await {
+        let existing = match state.maps_coll().find_one(doc! {"path": &rel}).await {
             Ok(v) => v,
             Err(err) => {
                 errors.push(SyncRunError {
@@ -529,7 +527,8 @@ pub async fn preload_from_directory(
         .iter()
         .map(|e| mongodb::bson::to_bson(e).unwrap_or(mongodb::bson::Bson::Null))
         .collect();
-    let _ = sync_runs_coll(state)
+    let _ = state
+        .sync_runs_coll()
         .update_one(
             doc! {"_id": run_id},
             doc! {"$set": {
@@ -560,21 +559,24 @@ pub async fn preload_from_directory(
 
 pub async fn find_map_by_id(state: &AppState, id: &str) -> Result<Option<Map>> {
     if let Ok(uuid) = Uuid::parse_str(id)
-        && let Some(map) = maps_coll(state)
+        && let Some(map) = state
+            .maps_coll()
             .find_one(doc! {"_id": uuid})
             .await
             .context("failed to query map by id")?
     {
         return Ok(Some(map));
     }
-    maps_coll(state)
+    state
+        .maps_coll()
         .find_one(doc! {"path": id})
         .await
         .context("failed to query map by path")
 }
 
 async fn mark_map_error(state: &AppState, map_id: Uuid, message: &str) {
-    let _ = maps_coll(state)
+    let _ = state
+        .maps_coll()
         .update_one(
             doc! {"_id": map_id},
             doc! {"$set": {"status": "error", "error": message, "updated_at": Utc::now()}},
@@ -586,14 +588,16 @@ async fn mark_map_error(state: &AppState, map_id: Uuid, message: &str) {
 /// encodes full-size and 1/8-scale webp thumbnails, uploads them to RustFS,
 /// and marks the map ready.
 pub async fn extract_image(state: &AppState, map_id: Uuid) -> Result<()> {
-    let _ = maps_coll(state)
+    let _ = state
+        .maps_coll()
         .update_one(
             doc! {"_id": map_id},
             doc! {"$set": {"status": "processing", "updated_at": Utc::now()}},
         )
         .await;
 
-    let map = maps_coll(state)
+    let map = state
+        .maps_coll()
         .find_one(doc! {"_id": map_id})
         .await
         .context("failed to load map for image extraction")?
@@ -670,7 +674,8 @@ pub async fn extract_image(state: &AppState, map_id: Uuid) -> Result<()> {
     upload_bytes(state, &image_key, full_webp, "image/webp").await?;
     upload_bytes(state, &thumb_key, thumb_webp, "image/webp").await?;
 
-    maps_coll(state)
+    state
+        .maps_coll()
         .update_one(
             doc! {"_id": map_id},
             doc! {"$set": {

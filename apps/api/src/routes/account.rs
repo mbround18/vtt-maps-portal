@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 use crate::{
     app::AppState,
-    models::{MapDownload, MapView, MapVote, Session, User},
     services::{
         auth::{self, require_authenticated, require_csrf},
         policy::{self, Permission},
@@ -21,22 +20,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/export", web::get().to(export_account_data))
             .route("/delete", web::post().to(delete_account)),
     );
-}
-
-fn users_coll(state: &AppState) -> mongodb::Collection<User> {
-    state.db.collection("users")
-}
-fn sessions_coll(state: &AppState) -> mongodb::Collection<Session> {
-    state.db.collection("sessions")
-}
-fn views_coll(state: &AppState) -> mongodb::Collection<MapView> {
-    state.db.collection("views")
-}
-fn downloads_coll(state: &AppState) -> mongodb::Collection<MapDownload> {
-    state.db.collection("downloads")
-}
-fn votes_coll(state: &AppState) -> mongodb::Collection<MapVote> {
-    state.db.collection("votes")
 }
 
 async fn find_all<T>(
@@ -78,35 +61,38 @@ async fn interactions(state: web::Data<AppState>, req: HttpRequest) -> HttpRespo
         }));
     }
 
-    let views = views_coll(&state)
+    let views = state
+        .views_coll()
         .count_documents(doc! {"user_id": user_id})
         .await
         .unwrap_or(0);
-    let downloads = downloads_coll(&state)
+    let downloads = state
+        .downloads_coll()
         .count_documents(doc! {"user_id": user_id})
         .await
         .unwrap_or(0);
-    let votes = votes_coll(&state)
+    let votes = state
+        .votes_coll()
         .count_documents(doc! {"user_id": user_id})
         .await
         .unwrap_or(0);
 
     let recent_views = find_all(
-        &views_coll(&state),
+        &state.views_coll(),
         doc! {"user_id": user_id},
         doc! {"started_at": -1},
         50,
     )
     .await;
     let recent_downloads = find_all(
-        &downloads_coll(&state),
+        &state.downloads_coll(),
         doc! {"user_id": user_id},
         doc! {"downloaded_at": -1},
         50,
     )
     .await;
     let recent_votes = find_all(
-        &votes_coll(&state),
+        &state.votes_coll(),
         doc! {"user_id": user_id},
         doc! {"created_at": -1},
         50,
@@ -135,7 +121,7 @@ async fn export_account_data(state: web::Data<AppState>, req: HttpRequest) -> Ht
         Err(resp) => return resp,
     };
 
-    let user = match users_coll(&state).find_one(doc! {"_id": user_id}).await {
+    let user = match state.users_coll().find_one(doc! {"_id": user_id}).await {
         Ok(Some(u)) => u,
         Ok(None) => {
             return HttpResponse::NotFound().json(serde_json::json!({"error": "user not found"}));
@@ -146,17 +132,17 @@ async fn export_account_data(state: web::Data<AppState>, req: HttpRequest) -> Ht
         }
     };
 
-    let views = find_all(&views_coll(&state), doc! {"user_id": user_id}, doc! {}, 0).await;
+    let views = find_all(&state.views_coll(), doc! {"user_id": user_id}, doc! {}, 0).await;
     let downloads = find_all(
-        &downloads_coll(&state),
+        &state.downloads_coll(),
         doc! {"user_id": user_id},
         doc! {},
         0,
     )
     .await;
-    let votes = find_all(&votes_coll(&state), doc! {"user_id": user_id}, doc! {}, 0).await;
+    let votes = find_all(&state.votes_coll(), doc! {"user_id": user_id}, doc! {}, 0).await;
     let sessions = find_all(
-        &sessions_coll(&state),
+        &state.sessions_coll(),
         doc! {"user_id": user_id},
         doc! {},
         0,
@@ -215,23 +201,27 @@ async fn delete_account(
         }));
     }
 
-    let _ = sessions_coll(&state)
+    let _ = state
+        .sessions_coll()
         .update_many(
             doc! {"user_id": user_id},
             doc! {"$set": {"revoked_at": Utc::now(), "revoked_reason": "account_delete"}},
         )
         .await;
-    let _ = votes_coll(&state)
+    let _ = state
+        .votes_coll()
         .delete_many(doc! {"user_id": user_id})
         .await;
-    let _ = views_coll(&state)
+    let _ = state
+        .views_coll()
         .delete_many(doc! {"user_id": user_id})
         .await;
-    let _ = downloads_coll(&state)
+    let _ = state
+        .downloads_coll()
         .delete_many(doc! {"user_id": user_id})
         .await;
 
-    match users_coll(&state).delete_one(doc! {"_id": user_id}).await {
+    match state.users_coll().delete_one(doc! {"_id": user_id}).await {
         Ok(r) if r.deleted_count == 0 => {
             HttpResponse::NotFound().json(serde_json::json!({"error": "user not found"}))
         }

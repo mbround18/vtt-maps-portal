@@ -35,19 +35,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn maps_coll(state: &AppState) -> mongodb::Collection<Map> {
-    state.db.collection("maps")
-}
-fn views_coll(state: &AppState) -> mongodb::Collection<MapView> {
-    state.db.collection("views")
-}
-fn downloads_coll(state: &AppState) -> mongodb::Collection<MapDownload> {
-    state.db.collection("downloads")
-}
-fn votes_coll(state: &AppState) -> mongodb::Collection<MapVote> {
-    state.db.collection("votes")
-}
-
 fn map_id_from_req(req: &HttpRequest) -> String {
     req.match_info().get("id").unwrap_or_default().to_string()
 }
@@ -142,7 +129,7 @@ async fn list_maps(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse
         .map(|q| q.into_inner())
         .unwrap_or_default();
 
-    let cursor = match maps_coll(&state).find(doc! {}).sort(doc! {"path": 1}).await {
+    let cursor = match state.maps_coll().find(doc! {}).sort(doc! {"path": 1}).await {
         Ok(c) => c,
         Err(err) => {
             return HttpResponse::InternalServerError()
@@ -199,15 +186,18 @@ async fn list_maps(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse
 }
 
 async fn map_stats(state: &AppState, map_id: Uuid) -> serde_json::Value {
-    let views = views_coll(state)
+    let views = state
+        .views_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);
-    let downloads = downloads_coll(state)
+    let downloads = state
+        .downloads_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);
-    let votes = votes_coll(state)
+    let votes = state
+        .votes_coll()
         .count_documents(doc! {"map_id": map_id})
         .await
         .unwrap_or(0);
@@ -222,7 +212,8 @@ async fn user_voted_for_map(state: &AppState, req: &HttpRequest, map_id: Uuid) -
     else {
         return false;
     };
-    votes_coll(state)
+    state
+        .votes_coll()
         .find_one(doc! {"map_id": map_id, "user_id": uid})
         .await
         .ok()
@@ -300,7 +291,7 @@ async fn related_maps(state: web::Data<AppState>, req: HttpRequest) -> HttpRespo
         }
     };
 
-    let cursor = match maps_coll(&state).find(doc! {}).await {
+    let cursor = match state.maps_coll().find(doc! {}).await {
         Ok(c) => c,
         Err(err) => {
             return HttpResponse::InternalServerError()
@@ -417,7 +408,7 @@ async fn view_start(
         duration_ms: None,
     };
 
-    match views_coll(&state).insert_one(&record).await {
+    match state.views_coll().insert_one(&record).await {
         Ok(_) => HttpResponse::Accepted().json(serde_json::json!({"status": "accepted"})),
         Err(err) => {
             HttpResponse::InternalServerError().json(serde_json::json!({"error": err.to_string()}))
@@ -452,7 +443,8 @@ async fn view_end(
             .json(serde_json::json!({"status": "accepted", "tracked": false}));
     }
 
-    let update = views_coll(&state)
+    let update = state
+        .views_coll()
         .update_one(
             doc! {"map_id": map.id, "session_id": &payload.session_id, "ended_at": null},
             doc! {"$set": {"ended_at": Utc::now(), "duration_ms": payload.duration_ms.max(0)}},
@@ -505,7 +497,7 @@ async fn download(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse 
         downloaded_at: Utc::now(),
     };
 
-    match downloads_coll(&state).insert_one(&record).await {
+    match state.downloads_coll().insert_one(&record).await {
         Ok(_) => HttpResponse::Accepted().json(serde_json::json!({"status": "tracked"})),
         Err(err) => {
             HttpResponse::InternalServerError().json(serde_json::json!({"error": err.to_string()}))
@@ -549,7 +541,8 @@ async fn vote(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
         }
     };
 
-    let existing = votes_coll(&state)
+    let existing = state
+        .votes_coll()
         .find_one(doc! {"map_id": map.id, "user_id": user_id})
         .await
         .ok()
@@ -561,7 +554,7 @@ async fn vote(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
             user_id,
             created_at: Utc::now(),
         };
-        if let Err(err) = votes_coll(&state).insert_one(&record).await {
+        if let Err(err) = state.votes_coll().insert_one(&record).await {
             return HttpResponse::InternalServerError()
                 .json(serde_json::json!({"error": err.to_string()}));
         }
@@ -606,7 +599,8 @@ async fn unvote(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
         }
     };
 
-    match votes_coll(&state)
+    match state
+        .votes_coll()
         .delete_one(doc! {"map_id": map.id, "user_id": user_id})
         .await
     {

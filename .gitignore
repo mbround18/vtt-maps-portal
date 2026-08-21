@@ -24,3 +24,6 @@ apps/web/blob-report
 
 # Runtime data
 .data
+
+# graphify (generated knowledge-graph output, local only)
+graphify-out/

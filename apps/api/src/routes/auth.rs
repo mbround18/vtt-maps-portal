@@ -19,10 +19,6 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     );
 }
 
-fn sessions_coll(state: &AppState) -> mongodb::Collection<Session> {
-    state.db.collection("sessions")
-}
-
 async fn discord_start(state: web::Data<AppState>) -> HttpResponse {
     match auth::issue_oauth_state(&state).await {
         Ok(oauth_state) => {
@@ -155,7 +151,8 @@ async fn sessions(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse 
     };
 
     use futures::TryStreamExt;
-    let cursor = match sessions_coll(&state)
+    let cursor = match state
+        .sessions_coll()
         .find(doc! {"user_id": user_id})
         .sort(doc! {"created_at": -1})
         .limit(50)
@@ -221,7 +218,8 @@ async fn revoke_session(
         }
     };
 
-    let existing = match sessions_coll(&state)
+    let existing = match state
+        .sessions_coll()
         .find_one(doc! {"_id": session_id})
         .await
     {
@@ -242,7 +240,8 @@ async fn revoke_session(
         return HttpResponse::Forbidden().json(serde_json::json!({"error": "forbidden"}));
     }
 
-    let updated = sessions_coll(&state)
+    let updated = state
+        .sessions_coll()
         .update_one(
             doc! {"_id": session_id},
             doc! {"$set": {"revoked_at": chrono::Utc::now(), "revoked_reason": "user_revoke"}},
@@ -294,7 +293,7 @@ async fn revoke_other_sessions(state: web::Data<AppState>, req: HttpRequest) -> 
         }
     };
 
-    let updated = sessions_coll(&state)
+    let updated = state.sessions_coll()
         .update_many(
             doc! {"user_id": actor_id, "_id": {"$ne": current_sid}, "revoked_at": null},
             doc! {"$set": {"revoked_at": chrono::Utc::now(), "revoked_reason": "user_revoke_others"}},

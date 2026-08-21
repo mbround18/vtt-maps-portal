@@ -79,14 +79,6 @@ fn random_token() -> String {
     format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
 }
 
-fn users_coll(state: &AppState) -> mongodb::Collection<User> {
-    state.db.collection("users")
-}
-
-fn sessions_coll(state: &AppState) -> mongodb::Collection<Session> {
-    state.db.collection("sessions")
-}
-
 fn oauth_states_coll(state: &AppState) -> mongodb::Collection<OAuthState> {
     state.db.collection("oauth_states")
 }
@@ -230,7 +222,8 @@ pub async fn create_session_for_user(state: &AppState, user: &User) -> Result<(S
     )
     .context("failed to sign jwt")?;
 
-    sessions_coll(state)
+    state
+        .sessions_coll()
         .insert_one(Session {
             id: sid,
             user_id: user.id,
@@ -274,7 +267,8 @@ pub async fn claims_from_request(req: &HttpRequest, state: &AppState) -> Result<
     let claims = verify_jwt(state, &token)?;
 
     let session_id = Uuid::parse_str(&claims.sid).context("invalid session id in token")?;
-    let session = sessions_coll(state)
+    let session = state
+        .sessions_coll()
         .find_one(doc! {"_id": session_id})
         .await
         .context("failed to read auth session")?
@@ -289,7 +283,8 @@ pub async fn claims_from_request(req: &HttpRequest, state: &AppState) -> Result<
     let now = Utc::now();
     let absolute_expiry = session.created_at + Duration::hours(state.config.session_absolute_hours);
     if session.expires_at <= now || absolute_expiry <= now {
-        let _ = sessions_coll(state)
+        let _ = state
+            .sessions_coll()
             .update_one(
                 doc! {"_id": session.id},
                 doc! {"$set": {"revoked_at": now, "revoked_reason": "absolute_timeout"}},
@@ -300,7 +295,8 @@ pub async fn claims_from_request(req: &HttpRequest, state: &AppState) -> Result<
 
     let idle_anchor = session.last_seen_at.unwrap_or(session.created_at);
     if idle_anchor + Duration::minutes(state.config.session_idle_minutes) <= now {
-        let _ = sessions_coll(state)
+        let _ = state
+            .sessions_coll()
             .update_one(
                 doc! {"_id": session.id},
                 doc! {"$set": {"revoked_at": now, "revoked_reason": "idle_timeout"}},
@@ -309,7 +305,8 @@ pub async fn claims_from_request(req: &HttpRequest, state: &AppState) -> Result<
         bail!("session idle timeout")
     }
 
-    let _ = sessions_coll(state)
+    let _ = state
+        .sessions_coll()
         .update_one(
             doc! {"_id": session.id},
             doc! {"$set": {"last_seen_at": now}},
@@ -343,7 +340,8 @@ pub async fn require_csrf(
     let session_id = Uuid::parse_str(&claims.sid).context("invalid session id")?;
     let expected_hash = hash_with_secret(&state.config.jwt_secret, &header_token);
 
-    let session = sessions_coll(state)
+    let session = state
+        .sessions_coll()
         .find_one(doc! {"_id": session_id})
         .await
         .context("failed to query csrf hash")?
@@ -358,7 +356,8 @@ pub async fn require_csrf(
 
 pub async fn revoke_session(state: &AppState, claims: &SessionClaims, reason: &str) -> Result<()> {
     let sid = Uuid::parse_str(&claims.sid).context("invalid session id")?;
-    sessions_coll(state)
+    state
+        .sessions_coll()
         .update_one(
             doc! {"_id": sid},
             doc! {"$set": {"revoked_at": Utc::now(), "revoked_reason": reason}},
@@ -420,7 +419,8 @@ pub fn resolve_role(state: &AppState, discord_id: &str, existing_role: Option<&s
 }
 
 pub async fn find_user_by_id(state: &AppState, id: Uuid) -> Result<Option<User>> {
-    users_coll(state)
+    state
+        .users_coll()
         .find_one(doc! {"_id": id})
         .await
         .context("failed to query user")
@@ -491,7 +491,7 @@ mod super_admin_tests {
 pub async fn upsert_user_from_discord(state: &AppState, profile: &DiscordUser) -> Result<User> {
     let username = profile.display_name();
     let avatar = profile.avatar_url();
-    let coll = users_coll(state);
+    let coll = state.users_coll();
 
     let existing = coll
         .find_one(doc! {"discord_id": &profile.id})

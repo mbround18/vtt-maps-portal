@@ -1,6 +1,9 @@
-use mongodb::Database;
+use mongodb::{Collection, Database};
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    models::{Job, Map, MapDownload, MapView, MapVote, Session, SyncRun, User},
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -11,6 +14,34 @@ pub struct AppState {
 impl AppState {
     pub fn new(config: Config, db: Database) -> Self {
         Self { config, db }
+    }
+
+    // Every route/service module used to redefine these as identical private
+    // one-liners (`state.db.collection("...")`) -- centralized here so there's
+    // exactly one definition per collection instead of up to four copies.
+    pub fn users_coll(&self) -> Collection<User> {
+        self.db.collection("users")
+    }
+    pub fn sessions_coll(&self) -> Collection<Session> {
+        self.db.collection("sessions")
+    }
+    pub fn maps_coll(&self) -> Collection<Map> {
+        self.db.collection("maps")
+    }
+    pub fn sync_runs_coll(&self) -> Collection<SyncRun> {
+        self.db.collection("sync_runs")
+    }
+    pub fn views_coll(&self) -> Collection<MapView> {
+        self.db.collection("views")
+    }
+    pub fn downloads_coll(&self) -> Collection<MapDownload> {
+        self.db.collection("downloads")
+    }
+    pub fn votes_coll(&self) -> Collection<MapVote> {
+        self.db.collection("votes")
+    }
+    pub fn jobs_coll(&self) -> Collection<Job> {
+        self.db.collection("jobs")
     }
 }
 
