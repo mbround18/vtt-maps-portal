@@ -1,6 +1,6 @@
 services:
   api:
-    image: mbround18/vtt-maps-portal-api:${VERSION:-latest}
+    image: mbround18/vtt-maps-portal:${VERSION:-latest}
     build:
       context: .
       dockerfile: infra/docker/Dockerfile

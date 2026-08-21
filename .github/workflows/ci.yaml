@@ -60,7 +60,7 @@ jobs:
       - name: Build and push runtime image (sha tag)
         run: |
           paws docker \
-            --image mbround18/vtt-maps-portal-api \
+            --image mbround18/vtt-maps-portal \
             --dockerfile infra/docker/Dockerfile \
             --context . \
             --target runtime \
@@ -75,7 +75,7 @@ jobs:
       - name: Build and push runtime image (latest tag)
         run: |
           paws docker \
-            --image mbround18/vtt-maps-portal-api \
+            --image mbround18/vtt-maps-portal \
             --version latest \
             --dockerfile infra/docker/Dockerfile \
             --context . \
