@@ -456,38 +456,6 @@ pub async fn require_super_admin(req: &HttpRequest, state: &AppState) -> Result<
     Ok(claims)
 }
 
-#[cfg(test)]
-mod super_admin_tests {
-    use super::{SessionClaims, is_super_admin};
-
-    fn claims(role: &str, discord_id: &str) -> SessionClaims {
-        SessionClaims {
-            iss: "vtt-maps".into(),
-            aud: "vtt-maps".into(),
-            sub: "user-1".into(),
-            sid: "sess-1".into(),
-            jti: "jti-1".into(),
-            discord_id: discord_id.into(),
-            username: "tester".into(),
-            role: role.into(),
-            nbf: 0,
-            exp: 0,
-            iat: 0,
-        }
-    }
-
-    #[test]
-    fn only_the_configured_discord_id_with_admin_role_is_super_admin() {
-        assert!(is_super_admin("111", &claims("admin", "111")));
-        // Manually-promoted admins whose discord id isn't the configured
-        // super admin id do not qualify.
-        assert!(!is_super_admin("111", &claims("admin", "222")));
-        // Non-admin role never qualifies, even with a matching discord id.
-        assert!(!is_super_admin("111", &claims("user", "111")));
-        assert!(!is_super_admin("111", &claims("contributor", "111")));
-    }
-}
-
 pub async fn upsert_user_from_discord(state: &AppState, profile: &DiscordUser) -> Result<User> {
     let username = profile.display_name();
     let avatar = profile.avatar_url();
@@ -542,4 +510,36 @@ pub async fn upsert_user_from_discord(state: &AppState, profile: &DiscordUser) -
         .context("failed to insert user")?;
 
     Ok(new_user)
+}
+
+#[cfg(test)]
+mod super_admin_tests {
+    use super::{SessionClaims, is_super_admin};
+
+    fn claims(role: &str, discord_id: &str) -> SessionClaims {
+        SessionClaims {
+            iss: "vtt-maps".into(),
+            aud: "vtt-maps".into(),
+            sub: "user-1".into(),
+            sid: "sess-1".into(),
+            jti: "jti-1".into(),
+            discord_id: discord_id.into(),
+            username: "tester".into(),
+            role: role.into(),
+            nbf: 0,
+            exp: 0,
+            iat: 0,
+        }
+    }
+
+    #[test]
+    fn only_the_configured_discord_id_with_admin_role_is_super_admin() {
+        assert!(is_super_admin("111", &claims("admin", "111")));
+        // Manually-promoted admins whose discord id isn't the configured
+        // super admin id do not qualify.
+        assert!(!is_super_admin("111", &claims("admin", "222")));
+        // Non-admin role never qualifies, even with a matching discord id.
+        assert!(!is_super_admin("111", &claims("user", "111")));
+        assert!(!is_super_admin("111", &claims("contributor", "111")));
+    }
 }
