@@ -10,13 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Rust fmt
-        run: cargo fmt --all -- --check
-      - name: Rust clippy
-        run: cargo clippy --all-targets -- -D warnings
-      - name: Rust test
-        run: cargo test --workspace
+      - uses: mbround18/paws/actions/paws-up@main
+        with:
+          github-token: ${{ github.token }}
+      - run: paws ci --toolchain rust
 
   web:
     runs-on: ubuntu-latest
@@ -25,22 +22,10 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
+      - uses: mbround18/paws/actions/paws-up@main
         with:
-          version: 11.22.0
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint
-      - run: pnpm run test
-      - run: pnpm run build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm run test:e2e
-        env:
-          CI: true
+          github-token: ${{ github.token }}
+      - run: paws ci --toolchain node
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
