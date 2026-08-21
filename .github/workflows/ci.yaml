@@ -68,4 +68,4 @@ jobs:
             --with-latest \
             --push
         env:
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
