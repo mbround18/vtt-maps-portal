@@ -57,10 +57,6 @@ jobs:
       - uses: mbround18/paws/actions/paws-up@main
         with:
           github-token: ${{ github.token }}
-          # Pin instead of tracking "latest": v0.0.1-prerelease.26 shipped
-          # without an x86_64-unknown-linux-gnu asset, breaking installs on
-          # this runner. .25 is confirmed working.
-          version: v0.0.1-prerelease.25
       - name: Build and push runtime image (sha tag)
         run: |
           paws docker \
