@@ -29,6 +29,20 @@ test.describe("navigation", () => {
   });
 
   test("no console errors on initial load", async ({ page }) => {
+    // This test only cares about errors the frontend itself produces --
+    // without a backend running (there isn't one in CI), an unmocked
+    // fetch/proxy failure would surface as its own "Failed to load resource"
+    // console error and drown out the thing we're actually checking.
+    await page.route("**/api/v1/auth/me", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: false, user: null }) })
+    );
+    await page.route("**/api/v1/public/github-stars", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ stars: null }) })
+    );
+    await page.route("**/api/v1/maps?limit=48", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], total: 0 }) })
+    );
+
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
     page.on("console", (msg) => {
