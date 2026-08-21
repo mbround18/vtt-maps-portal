@@ -1,0 +1,41 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+actix-web = "4"
+actix-cors = "0.7"
+actix-files = "0.6"
+actix-web-lab = "0.24"
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+dotenvy = "0.15"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+mongodb = "3"
+bson = { version = "2.15", features = ["chrono-0_4", "uuid-1"] }
+aws-sdk-s3 = { version = "1", features = ["behavior-version-latest"] }
+aws-credential-types = "1"
+webp = "0.3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+futures = "0.3"
+opentelemetry = "0.27"
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+tracing-opentelemetry = "0.28"
+url = "2"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+image = { version = "0.25", default-features = true }
+pulldown-cmark = "0.13"
+ammonia = "4"
+clap = { version = "4", features = ["derive"] }
+tempfile = "3"
+walkdir = "2"

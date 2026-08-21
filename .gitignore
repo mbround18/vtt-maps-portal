@@ -1,0 +1,26 @@
+data/
+
+# Rust
+/target
+**/*.rs.bk
+
+# Node
+node_modules
+apps/web/dist
+apps/web/.vite
+apps/web/playwright-report
+apps/web/test-results
+apps/web/blob-report
+
+# Env
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+.DS_Store
+
+# Runtime data
+.data

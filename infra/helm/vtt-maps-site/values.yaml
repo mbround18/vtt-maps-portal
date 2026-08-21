@@ -1,0 +1,51 @@
+image:
+  repository: mbround18/vtt-maps-site
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  hosts:
+    - host: vtt-maps.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+env:
+  PORT: "8080"
+  GITHUB_BRANCH: main
+
+secretEnv:
+  MONGO_URI: ""
+  DISCORD_CLIENT_ID: ""
+  DISCORD_CLIENT_SECRET: ""
+  DISCORD_REDIRECT_URI: ""
+  JWT_SECRET: ""
+  SUPER_ADMIN_DISCORD_ID: ""
+  GITHUB_URL: ""
+  GITHUB_TOKEN: ""
+  RUSTFS_ENDPOINT: ""
+  RUSTFS_BUCKET: ""
+  RUSTFS_ACCESS_KEY: ""
+  RUSTFS_SECRET_KEY: ""
+  RUSTFS_PUBLIC_URL_BASE: ""
+
+resources: {}
+
+# Runs `mapper preload` on a schedule to pick up new maps from the
+# configured GitHub repo without waiting for the API server's own
+# in-process nightly loop (or as the only sync path if that loop is
+# disabled). Uses the same image/secretEnv/env as the api Deployment.
+preload:
+  enabled: false
+  schedule: "0 3 * * *"
+  backoffLimit: 2
+  activeDeadlineSeconds: 1800
+  resources: {}

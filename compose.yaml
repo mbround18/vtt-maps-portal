@@ -1,0 +1,53 @@
+services:
+  api:
+    image: mbround18/vtt-maps-site:latest
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile
+      target: runtime
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/vttmaps
+      - GITHUB_URL=${GITHUB_URL}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
+      - RUSTFS_ENDPOINT=http://rustfs:9000
+      - RUSTFS_BUCKET=${RUSTFS_BUCKET:-vtt-maps}
+      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
+      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
+      - RUSTFS_PUBLIC_URL_BASE=${RUSTFS_PUBLIC_URL_BASE:-http://localhost:9010}
+      - SUPER_ADMIN_DISCORD_ID=${SUPER_ADMIN_DISCORD_ID}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rustfs:
+        condition: service_started
+
+  mongo:
+    image: mongo:8
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+    ports:
+      - "9010:9000"
+    volumes:
+      - rustfs-data:/data
+
+volumes:
+  mongo-data: {}
+  rustfs-data: {}

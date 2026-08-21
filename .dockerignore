@@ -1,0 +1,5 @@
+target
+docs
+infra/helm
+.github
+data/

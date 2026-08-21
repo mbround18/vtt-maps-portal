@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>D&D VTT Maps | Free Virtual Tabletop Battle Maps</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              void: "#121212",
+              charcoal: "#1E1E24",
+              slate: "#2A2A35",
+              dragon: {
+                DEFAULT: "#D92121",
+                hover: "#B71C1C",
+              },
+              gold: {
+                DEFAULT: "#D4AF37",
+                muted: "rgba(212, 175, 55, 0.1)",
+              },
+              parchment: "#E0E0E0",
+              stone: "#A0A0A0",
+              arcane: "#2196F3",
+              nature: "#4CAF50",
+            },
+            fontFamily: {
+              fantasy: ["Cinzel", "serif"],
+              sans: ["Inter", "sans-serif"],
+            },
+            backgroundImage: {
+              "hero-pattern":
+                "linear-gradient(to bottom, rgba(18, 18, 18, 0.8), rgba(18, 18, 18, 1)), url('https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?q=80&w=2070&auto=format&fit=crop')",
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+      /* Custom scrollbar for webkit */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #121212;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #2a2a35;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #d4af37;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-void text-parchment font-sans antialiased selection:bg-dragon selection:text-white"
+  >
+    <!-- Navigation -->
+    <nav
+      class="fixed w-full z-50 bg-void/90 backdrop-blur-md border-b border-slate transition-all duration-300"
+    >
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Logo -->
+          <div class="flex items-center gap-3 cursor-pointer group">
+            <div
+              class="p-2 bg-charcoal rounded-lg border border-slate group-hover:border-gold transition-colors"
+            >
+              <i data-lucide="map" class="w-6 h-6 text-dragon"></i>
+            </div>
+            <span
+              class="font-fantasy font-bold text-xl tracking-wider text-white group-hover:text-gold transition-colors"
+              >VTT Maps</span
+            >
+          </div>
+
+          <!-- Desktop Menu -->
+          <div class="hidden md:flex items-center space-x-8">
+            <a
+              href="#"
+              class="flex items-center gap-2 text-stone hover:text-white transition-colors text-sm font-medium"
+            >
+              <i data-lucide="home" class="w-4 h-4"></i> Home
+            </a>
+            <a
+              href="#catalog"
+              class="flex items-center gap-2 text-stone hover:text-white transition-colors text-sm font-medium"
+            >
+              <i data-lucide="library" class="w-4 h-4"></i> Catalog
+            </a>
+            <a
+              href="#"
+              class="flex items-center gap-2 text-stone hover:text-white transition-colors text-sm font-medium"
+            >
+              <i data-lucide="github" class="w-4 h-4"></i> GitHub
+            </a>
+            <a
+              href="#"
+              class="flex items-center gap-2 px-4 py-2 rounded-md bg-dragon text-white hover:bg-dragon-hover transition-all text-sm font-medium shadow-lg shadow-dragon/20"
+            >
+              <i data-lucide="heart" class="w-4 h-4"></i> Support Us
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section
+      class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 bg-hero-pattern bg-cover bg-center bg-no-repeat border-b border-slate"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center"
+      >
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate border border-gray-700 text-xs font-medium text-stone mb-6"
+        >
+          <span class="w-2 h-2 rounded-full bg-nature animate-pulse"></span>
+          Updated with 10+ new DungeonDraft files
+        </div>
+        <h1
+          class="text-4xl md:text-6xl font-fantasy font-bold text-white mb-6 tracking-tight"
+        >
+          High-Quality Battle Maps <br />
+          <span
+            class="text-transparent bg-clip-text bg-gradient-to-r from-dragon to-gold"
+            >For Virtual Tabletops</span
+          >
+        </h1>
+        <p
+          class="mt-4 text-lg md:text-xl text-stone max-w-2xl mx-auto mb-10 leading-relaxed"
+        >
+          A curated library of high-resolution, fully prepped maps built for
+          Foundry VTT, Roll20, and more. Source files and
+          <code class="bg-charcoal px-2 py-0.5 rounded text-sm text-arcane"
+            >.dd2vtt</code
+          >
+          included.
+        </p>
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
+          <a
+            href="#catalog"
+            class="inline-flex justify-center items-center gap-2 px-8 py-3.5 border border-transparent text-base font-medium rounded-md text-white bg-dragon hover:bg-dragon-hover transition-all shadow-lg shadow-dragon/30 hover:shadow-dragon/50"
+          >
+            <i data-lucide="compass" class="w-5 h-5"></i>
+            Browse Catalog
+          </a>
+          <a
+            href="#"
+            class="inline-flex justify-center items-center gap-2 px-8 py-3.5 border border-gold text-base font-medium rounded-md text-gold bg-transparent hover:bg-gold-muted transition-all"
+          >
+            <i data-lucide="coffee" class="w-5 h-5"></i>
+            Sponsor on Ko-fi
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-void">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Feature 1 -->
+          <div
+            class="p-6 rounded-xl bg-charcoal border border-slate hover:border-dragon/50 transition-colors"
+          >
+            <div
+              class="w-12 h-12 rounded-lg bg-slate flex items-center justify-center mb-4 text-dragon"
+            >
+              <i data-lucide="layers" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-fantasy font-bold text-white mb-2">
+              DungeonDraft Ready
+            </h3>
+            <p class="text-stone text-sm leading-relaxed">
+              Access the original source files. Edit, tweak, and customize every
+              map if you own a valid DungeonDraft license.
+            </p>
+          </div>
+          <!-- Feature 2 -->
+          <div
+            class="p-6 rounded-xl bg-charcoal border border-slate hover:border-gold/50 transition-colors"
+          >
+            <div
+              class="w-12 h-12 rounded-lg bg-slate flex items-center justify-center mb-4 text-gold"
+            >
+              <i data-lucide="download-cloud" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-fantasy font-bold text-white mb-2">
+              Pre-Configured Walls
+            </h3>
+            <p class="text-stone text-sm leading-relaxed">
+              Exported <code class="text-arcane">.dd2vtt</code> JSON files ready
+              for instant import into Foundry VTT with Universal Battlemap
+              Importer.
+            </p>
+          </div>
+          <!-- Feature 3 -->
+          <div
+            class="p-6 rounded-xl bg-charcoal border border-slate hover:border-nature/50 transition-colors"
+          >
+            <div
+              class="w-12 h-12 rounded-lg bg-slate flex items-center justify-center mb-4 text-nature"
+            >
+              <i data-lucide="monitor" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-fantasy font-bold text-white mb-2">
+              High-Resolution Art
+            </h3>
+            <p class="text-stone text-sm leading-relaxed">
+              Beautiful, hand-crafted assets available in both grid and gridless
+              versions for any campaign style.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Map Catalog Section -->
+    <section
+      id="catalog"
+      class="py-20 bg-charcoal border-t border-b border-slate relative"
+    >
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row justify-between items-end mb-10">
+          <div>
+            <h2 class="text-3xl font-fantasy font-bold text-white mb-2">
+              Map Catalog
+            </h2>
+            <p class="text-stone">
+              Explore our collection of ready-to-play battle maps.
+            </p>
+          </div>
+          <div class="mt-4 md:mt-0 flex gap-2">
+            <button
+              class="px-4 py-2 text-sm bg-slate rounded-md text-white border border-gray-600 hover:border-gold transition-colors"
+            >
+              All
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-void rounded-md text-stone border border-transparent hover:text-white transition-colors"
+            >
+              Wilderness
+            </button>
+            <button
+              class="px-4 py-2 text-sm bg-void rounded-md text-stone border border-transparent hover:text-white transition-colors"
+            >
+              Dungeon
+            </button>
+          </div>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <!-- Card 1 -->
+          <div
+            class="group bg-void rounded-xl overflow-hidden border border-slate hover:-translate-y-1 hover:shadow-2xl hover:shadow-dragon/10 transition-all duration-300 flex flex-col"
+          >
+            <div class="relative aspect-video overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop"
+                alt="Sunken Ruins"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div class="absolute top-3 right-3 flex gap-1">
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur text-white rounded"
+                  >Grid</span
+                >
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur text-white rounded"
+                  >Gridless</span
+                >
+              </div>
+            </div>
+            <div class="p-5 flex-grow flex flex-col">
+              <h3
+                class="text-xl font-fantasy font-bold text-white mb-1 group-hover:text-gold transition-colors"
+              >
+                The Sunken Ruins
+              </h3>
+              <p class="text-sm text-stone mb-4 line-clamp-2">
+                An ancient temple submerged in a dark swamp. Features multiple
+                elevations and hidden water channels.
+              </p>
+
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate text-xs text-arcane border border-gray-700"
+                >
+                  <i data-lucide="file-json" class="w-3 h-3"></i> .dd2vtt
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate text-xs text-nature border border-gray-700"
+                >
+                  <i data-lucide="check-circle" class="w-3 h-3"></i> Foundry
+                  Ready
+                </span>
+              </div>
+
+              <div class="mt-auto">
+                <button
+                  class="w-full py-2.5 rounded-md bg-slate text-white border border-gray-600 hover:bg-dragon hover:border-dragon transition-all flex justify-center items-center gap-2 text-sm font-medium"
+                >
+                  <i data-lucide="download" class="w-4 h-4"></i> Get Map Files
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div
+            class="group bg-void rounded-xl overflow-hidden border border-slate hover:-translate-y-1 hover:shadow-2xl hover:shadow-dragon/10 transition-all duration-300 flex flex-col"
+          >
+            <div class="relative aspect-video overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=800&auto=format&fit=crop"
+                alt="Smuggler's Cave"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div class="absolute top-3 right-3 flex gap-1">
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur text-white rounded"
+                  >Gridless</span
+                >
+              </div>
+            </div>
+            <div class="p-5 flex-grow flex flex-col">
+              <div class="flex justify-between items-start mb-1">
+                <h3
+                  class="text-xl font-fantasy font-bold text-white group-hover:text-gold transition-colors"
+                >
+                  Smuggler's Cave
+                </h3>
+              </div>
+              <p class="text-sm text-stone mb-4 line-clamp-2">
+                A coastal cave system used by local pirates. Includes docked
+                rowboats, scattered loot, and a makeshift tavern.
+              </p>
+
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate text-xs text-arcane border border-gray-700"
+                >
+                  <i data-lucide="file-json" class="w-3 h-3"></i> .dd2vtt
+                </span>
+              </div>
+
+              <div class="mt-auto">
+                <button
+                  class="w-full py-2.5 rounded-md bg-slate text-white border border-gray-600 hover:bg-dragon hover:border-dragon transition-all flex justify-center items-center gap-2 text-sm font-medium"
+                >
+                  <i data-lucide="download" class="w-4 h-4"></i> Get Map Files
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div
+            class="group bg-void rounded-xl overflow-hidden border border-slate hover:-translate-y-1 hover:shadow-2xl hover:shadow-dragon/10 transition-all duration-300 flex flex-col"
+          >
+            <div class="relative aspect-video overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1533035353720-f1c6a75ce8c4?q=80&w=800&auto=format&fit=crop"
+                alt="Crossroads Tavern"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 grayscale-[0.2]"
+              />
+              <div class="absolute top-3 left-3">
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-dragon text-white rounded shadow-md"
+                  >New</span
+                >
+              </div>
+              <div class="absolute top-3 right-3 flex gap-1">
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur text-white rounded"
+                  >Grid</span
+                >
+                <span
+                  class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-black/70 backdrop-blur text-white rounded"
+                  >Gridless</span
+                >
+              </div>
+            </div>
+            <div class="p-5 flex-grow flex flex-col">
+              <h3
+                class="text-xl font-fantasy font-bold text-white mb-1 group-hover:text-gold transition-colors"
+              >
+                Crossroads Tavern
+              </h3>
+              <p class="text-sm text-stone mb-4 line-clamp-2">
+                A warm, multi-level tavern featuring a cellar, main taproom, and
+                upstairs lodgings. Perfect for starting a campaign.
+              </p>
+
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate text-xs text-arcane border border-gray-700"
+                >
+                  <i data-lucide="file-json" class="w-3 h-3"></i> .dd2vtt
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate text-xs text-stone border border-gray-700"
+                >
+                  <i data-lucide="image" class="w-3 h-3"></i> Source Files
+                </span>
+              </div>
+
+              <div class="mt-auto">
+                <button
+                  class="w-full py-2.5 rounded-md bg-slate text-white border border-gray-600 hover:bg-dragon hover:border-dragon transition-all flex justify-center items-center gap-2 text-sm font-medium"
+                >
+                  <i data-lucide="download" class="w-4 h-4"></i> Get Map Files
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-12 text-center">
+          <button
+            class="inline-flex justify-center items-center gap-2 px-6 py-3 border border-slate text-sm font-medium rounded-md text-stone hover:text-white hover:border-gray-500 transition-colors"
+          >
+            Load More Maps <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-void border-t border-slate pt-16 pb-8">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          <div class="col-span-1 md:col-span-2">
+            <div class="flex items-center gap-2 mb-4">
+              <i data-lucide="map" class="w-6 h-6 text-dragon"></i>
+              <span class="font-fantasy font-bold text-xl text-white"
+                >VTT Maps</span
+              >
+            </div>
+            <p class="text-stone text-sm max-w-sm mb-6">
+              A curated collection of high-resolution, fully prepped maps built
+              for virtual tabletop platforms.
+            </p>
+            <div class="flex gap-4">
+              <a href="#" class="text-stone hover:text-white transition-colors"
+                ><i data-lucide="github" class="w-5 h-5"></i
+              ></a>
+              <a href="#" class="text-stone hover:text-dragon transition-colors"
+                ><i data-lucide="heart" class="w-5 h-5"></i
+              ></a>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-white font-bold mb-4 font-fantasy tracking-wide">
+              Resources
+            </h4>
+            <ul class="space-y-2 text-sm text-stone">
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >Catalog</a
+                >
+              </li>
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >DungeonDraft Integration</a
+                >
+              </li>
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >Asset Packs</a
+                >
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 class="text-white font-bold mb-4 font-fantasy tracking-wide">
+              Community
+            </h4>
+            <ul class="space-y-2 text-sm text-stone">
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >Discussions</a
+                >
+              </li>
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >Report Issues</a
+                >
+              </li>
+              <li>
+                <a href="#" class="hover:text-gold transition-colors"
+                  >Sponsor Project</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div
+          class="border-t border-slate pt-8 flex flex-col md:flex-row justify-between items-center gap-4"
+        >
+          <p class="text-stone text-xs">
+            © 2024 VTT Maps. Distributed under the MIT License.
+          </p>
+          <p class="text-stone text-xs flex items-center gap-1">
+            Made with
+            <i data-lucide="swords" class="w-3 h-3 text-stone"></i> for tabletop
+            RPGs.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Initialize Icons -->
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

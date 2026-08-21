@@ -1,0 +1,5 @@
+apiVersion: v2
+name: vtt-maps-site
+description: Helm chart for vtt-maps-site
+version: 0.1.0
+appVersion: "0.1.0"

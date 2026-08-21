@@ -1,0 +1,27 @@
+{{- if .Values.preload.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "vtt-maps-site.fullname" . }}-preload
+spec:
+  schedule: {{ .Values.preload.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.preload.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.preload.activeDeadlineSeconds }}
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: preload
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["/app/mapper", "preload"]
+              envFrom:
+                - configMapRef:
+                    name: {{ include "vtt-maps-site.fullname" . }}-config
+                - secretRef:
+                    name: {{ include "vtt-maps-site.fullname" . }}-secrets
+              resources:
+                {{- toYaml .Values.preload.resources | nindent 16 }}
+{{- end }}
