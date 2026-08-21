@@ -1,5 +1,5 @@
 image:
-  repository: mbround18/vtt-maps-site
+  repository: mbround18/vtt-maps-portal-api
   tag: latest
   pullPolicy: IfNotPresent
 

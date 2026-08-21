@@ -1,12 +1,16 @@
-FROM node:22-bookworm AS web-builder
-RUN corepack enable && corepack prepare pnpm@11.22.0 --activate
+FROM node:26-bookworm AS web-builder
+# Non-interactive: without this, pnpm refuses to reconcile node_modules after
+# the second COPY below (no TTY to confirm a modules-dir purge) and aborts.
+ENV CI=true
+# Node 26 no longer bundles corepack by default; install pnpm directly.
+RUN npm install -g pnpm@11.22.0
 WORKDIR /app/apps/web
-COPY apps/web/package.json apps/web/pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/pnpm-lock.yaml apps/web/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY apps/web .
 RUN pnpm run build
 
-FROM rust:1.91-bookworm AS rust-builder
+FROM rust:1.97.1-bookworm AS rust-builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends pkg-config && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml ./
