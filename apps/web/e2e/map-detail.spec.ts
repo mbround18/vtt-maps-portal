@@ -247,6 +247,54 @@ test.describe("map detail page", () => {
     expect(popups).toHaveLength(0);
   });
 
+  test("downloading DD2VTT sends the session cookie to the API-proxied asset route (regression: credentials must not be omitted)", async ({
+    page,
+    context
+  }) => {
+    // Mirrors production: since maps were switched to be proxied through the
+    // API (rather than a public RustFS URL), the asset route requires the
+    // session cookie. If the download fetch omits credentials, the API
+    // 401s, the fallback window.open() happens too late to count as a user
+    // gesture, and the browser silently blocks the popup -- the user clicks
+    // "Download Now" and nothing happens.
+    const proxiedPayload = {
+      ...MAP_DETAIL_PAYLOAD,
+      preview: { ...MAP_DETAIL_PAYLOAD.preview, dd2vtt_download_url: `/api/v1/maps/${MAP_ID}/asset` }
+    };
+    await context.addCookies([
+      { name: "session", value: "test-session-token", domain: "localhost", path: "/" }
+    ]);
+    await page.route(`**/api/v1/maps/${MAP_ID}`, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(proxiedPayload) })
+    );
+    await mockApi(page, { role: "user", is_super_admin: false });
+    // Re-register the map-detail route after mockApi so the proxied payload wins.
+    await page.route(`**/api/v1/maps/${MAP_ID}`, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(proxiedPayload) })
+    );
+
+    let sawCookieHeader = false;
+    await page.route(`**/api/v1/maps/${MAP_ID}/asset`, (route) => {
+      const cookieHeader = route.request().headers()["cookie"] ?? "";
+      sawCookieHeader = cookieHeader.includes("session=test-session-token");
+      route.fulfill({ status: 200, contentType: "application/octet-stream", body: "fake-dd2vtt-bytes" });
+    });
+
+    await page.goto(`/maps/${MAP_ID}`);
+
+    await page.getByRole("button", { name: "Download DD2VTT" }).click();
+    await expect(page.getByText("Support the project before you download")).toBeVisible();
+
+    const [downloadRequest] = await Promise.all([
+      page.waitForRequest(`**/api/v1/maps/${MAP_ID}/asset`),
+      page.getByRole("button", { name: "Download Now" }).click()
+    ]);
+    expect(downloadRequest).toBeTruthy();
+
+    await expect(page.getByText("Support the project before you download")).toHaveCount(0, { timeout: 5000 });
+    expect(sawCookieHeader).toBe(true);
+  });
+
   test("canceling the DD2VTT dialog does not download the file", async ({ page }) => {
     await mockApi(page, { role: "user", is_super_admin: false });
     await page.goto(`/maps/${MAP_ID}`);

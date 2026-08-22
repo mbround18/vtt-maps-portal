@@ -286,7 +286,7 @@ export function MapDetailPage() {
   }, [detail?.map.name, detail?.map.path]);
 
   const saveFileToDisk = async (url: string, filename: string) => {
-    const response = await fetch(url, { credentials: "omit" });
+    const response = await fetch(url, { credentials: "include" });
     if (!response.ok) throw new Error(`download failed: ${response.status}`);
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
