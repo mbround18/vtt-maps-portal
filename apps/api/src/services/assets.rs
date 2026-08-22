@@ -1,11 +1,8 @@
-use std::time::Duration as StdDuration;
-
 use anyhow::{Context, Result, bail};
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{
     Client as S3Client,
     config::{BehaviorVersion, Region},
-    presigning::PresigningConfig,
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
 use chrono::Utc;
@@ -39,14 +36,14 @@ pub fn s3_client(state: &AppState) -> S3Client {
     S3Client::from_conf(cfg)
 }
 
-/// Creates the configured RustFS bucket if it doesn't already exist, and
-/// sets a public-read policy on it. Idempotent — safe to call on every
-/// startup (server) or CLI invocation.
+/// Creates the configured RustFS bucket if it doesn't already exist.
+/// Idempotent — safe to call on every startup (server) or CLI invocation.
 ///
-/// Public-read is required because `public_url_for_key` hands out direct
-/// (non-presigned) URLs for map images (`image_url`/`thumb_url`) — only the
-/// `.dd2vtt` source download goes through a presigned URL, since that one
-/// stays permission-gated.
+/// The bucket stays private: nothing outside the cluster talks to RustFS
+/// directly. All reads (map images, thumbnails, the `.dd2vtt` source) go
+/// through this API's own `/api/v1/assets/{key}` proxy (`download_object`
+/// below, wired up in `routes::assets` and `routes::maps`), so RustFS never
+/// needs public network exposure.
 pub async fn ensure_bucket(state: &AppState) -> Result<()> {
     let client = s3_client(state);
     let bucket = &state.config.rustfs_bucket;
@@ -65,35 +62,16 @@ pub async fn ensure_bucket(state: &AppState) -> Result<()> {
         }
     }
 
-    let policy = serde_json::json!({
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Principal": "*",
-            "Action": ["s3:GetObject"],
-            "Resource": [format!("arn:aws:s3:::{bucket}/*")]
-        }]
-    })
-    .to_string();
-
-    client
-        .put_bucket_policy()
-        .bucket(bucket)
-        .policy(policy)
-        .send()
-        .await
-        .with_context(|| format!("failed to set public-read policy on bucket {bucket}"))?;
-
     Ok(())
 }
 
-pub fn public_url_for_key(state: &AppState, key: &str) -> String {
-    format!(
-        "{}/{}/{}",
-        state.config.rustfs_public_url_base.trim_end_matches('/'),
-        state.config.rustfs_bucket,
-        key
-    )
+/// Builds the URL the frontend uses to fetch a stored object -- a relative
+/// path on this same API (see `routes::assets::configure`), never a direct
+/// RustFS URL. Relative because the API always serves the SPA and `/api/v1`
+/// from the same origin, which also keeps this working under the `img-src
+/// 'self'` CSP directive in `main.rs` with zero extra config.
+pub fn public_url_for_key(_state: &AppState, key: &str) -> String {
+    format!("/api/v1/assets/{key}")
 }
 
 async fn upload_bytes(
@@ -115,15 +93,42 @@ async fn upload_bytes(
     Ok(())
 }
 
-async fn download_bytes(state: &AppState, key: &str) -> Result<Vec<u8>> {
+pub struct RustfsObject {
+    pub bytes: Vec<u8>,
+    pub content_type: String,
+}
+
+/// Fetches an object's bytes + content-type directly from RustFS. Used by
+/// both the public asset proxy (`routes::assets`) and the gated `.dd2vtt`
+/// download route (`routes::maps::download_asset_file`) -- the only two
+/// places that read raw object bytes back out of RustFS. Returns `Ok(None)`
+/// for a missing key (proxies map that to 404) rather than an error.
+pub async fn download_object(state: &AppState, key: &str) -> Result<Option<RustfsObject>> {
     let client = s3_client(state);
-    let output = client
+    let output = match client
         .get_object()
         .bucket(&state.config.rustfs_bucket)
         .key(key)
         .send()
         .await
-        .with_context(|| format!("failed to download object {key} from rustfs"))?;
+    {
+        Ok(v) => v,
+        Err(err) => {
+            let not_found = err
+                .as_service_error()
+                .map(|e| e.is_no_such_key())
+                .unwrap_or(false);
+            if not_found {
+                return Ok(None);
+            }
+            return Err(err)
+                .with_context(|| format!("failed to download object {key} from rustfs"));
+        }
+    };
+    let content_type = output
+        .content_type()
+        .map(str::to_string)
+        .unwrap_or_else(|| "application/octet-stream".to_string());
     let bytes = output
         .body
         .collect()
@@ -131,22 +136,17 @@ async fn download_bytes(state: &AppState, key: &str) -> Result<Vec<u8>> {
         .context("failed to read rustfs object body")?
         .into_bytes()
         .to_vec();
-    Ok(bytes)
+    Ok(Some(RustfsObject {
+        bytes,
+        content_type,
+    }))
 }
 
-pub async fn presigned_asset_url(state: &AppState, key: &str) -> Result<String> {
-    let client = s3_client(state);
-    let presigned = client
-        .get_object()
-        .bucket(&state.config.rustfs_bucket)
-        .key(key)
-        .presigned(
-            PresigningConfig::expires_in(StdDuration::from_secs(300))
-                .context("failed to build presigning config")?,
-        )
-        .await
-        .context("failed to presign rustfs object")?;
-    Ok(presigned.uri().to_string())
+async fn download_bytes(state: &AppState, key: &str) -> Result<Vec<u8>> {
+    download_object(state, key)
+        .await?
+        .map(|obj| obj.bytes)
+        .ok_or_else(|| anyhow::anyhow!("rustfs object {key} not found"))
 }
 
 fn normalize_segment(value: &str) -> String {

@@ -133,6 +133,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/api/v1")
                     .configure(routes::public::configure)
+                    .configure(routes::assets::configure)
                     .configure(routes::auth::configure)
                     .configure(routes::account::configure)
                     .configure(routes::maps::configure)

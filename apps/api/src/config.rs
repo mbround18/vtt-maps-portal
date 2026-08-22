@@ -21,7 +21,6 @@ pub struct Config {
     pub rustfs_bucket: String,
     pub rustfs_access_key: String,
     pub rustfs_secret_key: String,
-    pub rustfs_public_url_base: String,
     pub otel_exporter_otlp_endpoint: Option<String>,
     pub kofi_url: Option<String>,
     pub cookie_secure: bool,
@@ -59,7 +58,6 @@ impl Config {
         let rustfs_bucket = req("RUSTFS_BUCKET")?;
         let rustfs_access_key = req("RUSTFS_ACCESS_KEY")?;
         let rustfs_secret_key = req("RUSTFS_SECRET_KEY")?;
-        let rustfs_public_url_base = req("RUSTFS_PUBLIC_URL_BASE")?;
 
         let port = env::var("PORT")
             .ok()
@@ -85,7 +83,6 @@ impl Config {
             rustfs_bucket,
             rustfs_access_key,
             rustfs_secret_key,
-            rustfs_public_url_base,
             otel_exporter_otlp_endpoint: env::var("OTEL_EXPORTER_OTLP_ENDPOINT").ok(),
             kofi_url: env::var("KOFI_URL").ok(),
             cookie_secure: env::var("COOKIE_SECURE")
