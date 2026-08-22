@@ -16,8 +16,10 @@ MongoDB is the only datastore (`MONGO_URI`). Key collections: `users`,
 ## Object storage
 
 RustFS holds the raw `.dd2vtt` source files and the generated `full.webp`/
-`thumb.webp` images, addressed via `RUSTFS_ENDPOINT`/`RUSTFS_BUCKET` and
-served to the frontend via `RUSTFS_PUBLIC_URL_BASE`.
+`thumb.webp` images, addressed via `RUSTFS_ENDPOINT`/`RUSTFS_BUCKET`. It's
+never exposed to the frontend directly -- the API proxies reads through
+`GET /api/v1/assets/{key}` (anonymous) and the gated `.dd2vtt` download
+route, so RustFS stays cluster/compose-internal only.
 
 ## Asset sync
 

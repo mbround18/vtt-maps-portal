@@ -32,6 +32,8 @@ job document; there is no separate queue/lock service.
 
 Map assets (source `.dd2vtt` files and generated webp images) live in
 RustFS, an S3-compatible object store, configured via `RUSTFS_ENDPOINT`,
-`RUSTFS_BUCKET`, `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY`, and
-`RUSTFS_PUBLIC_URL_BASE` (used to build directly-openable image URLs for
-the frontend).
+`RUSTFS_BUCKET`, `RUSTFS_ACCESS_KEY`, and `RUSTFS_SECRET_KEY`. RustFS itself
+never needs to be network-reachable from outside the cluster/compose
+network: the API proxies every read through `GET /api/v1/assets/{key}`
+(anonymous, for map images/thumbnails) or the gated `.dd2vtt` download route,
+so the frontend only ever talks to RustFS indirectly, through the API.

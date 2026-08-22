@@ -357,10 +357,15 @@ async fn download_asset_file(state: web::Data<AppState>, req: HttpRequest) -> Ht
         }
     };
 
-    match assets::presigned_asset_url(&state, &map.source_key).await {
-        Ok(url) => HttpResponse::Found()
-            .append_header((header::LOCATION, url))
-            .finish(),
+    match assets::download_object(&state, &map.source_key).await {
+        Ok(Some(obj)) => HttpResponse::Ok()
+            .content_type(obj.content_type.as_str())
+            .append_header((
+                header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{}.dd2vtt\"", map.id),
+            ))
+            .body(obj.bytes),
+        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({"error": "asset not found"})),
         Err(err) => {
             HttpResponse::InternalServerError().json(serde_json::json!({"error": err.to_string()}))
         }

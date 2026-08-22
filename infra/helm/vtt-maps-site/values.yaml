@@ -35,7 +35,6 @@ secretEnv:
   RUSTFS_BUCKET: ""
   RUSTFS_ACCESS_KEY: ""
   RUSTFS_SECRET_KEY: ""
-  RUSTFS_PUBLIC_URL_BASE: ""
 
 resources: {}
 
