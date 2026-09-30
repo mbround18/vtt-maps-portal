@@ -7,7 +7,7 @@ edition.workspace = true
 actix-web = "4"
 actix-cors = "0.7"
 actix-files = "0.6"
-actix-web-lab = "0.24"
+actix-web-lab = "0.26"
 chrono.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -27,7 +27,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 futures = "0.3"
 opentelemetry = "0.27"
 opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
-opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
 tracing-opentelemetry = "0.28"
 url = "2"
 sha2 = "0.10"
